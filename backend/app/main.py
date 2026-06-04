@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter
@@ -12,6 +14,7 @@ from app.core.database import Base, engine
 from sqlalchemy import text
 
 settings = get_settings()
+logger = logging.getLogger("venturemind")
 limiter = Limiter(key_func=get_remote_address, default_limits=[settings.rate_limit])
 
 app = FastAPI(title=settings.app_name, version="1.0.0", docs_url="/api/docs", openapi_url="/api/openapi.json")
@@ -33,7 +36,11 @@ async def rate_limit_handler(_, exc):
 
 @app.on_event("startup")
 def startup() -> None:
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables verified.")
+    except Exception:
+        logger.exception("Database table creation failed. The API will stay online; check /health/db.")
 
 
 @app.get("/api/health")
@@ -43,9 +50,12 @@ def health():
 
 @app.get("/api/health/db")
 def database_health():
-    with engine.connect() as connection:
-        connection.execute(text("SELECT 1"))
-    return {"status": "ok", "database": "postgresql"}
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        return {"status": "ok", "database": "postgresql"}
+    except Exception as exc:
+        return {"status": "error", "database": "postgresql", "detail": str(exc)}
 
 
 @app.get("/health/db")
