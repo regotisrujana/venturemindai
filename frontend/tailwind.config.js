@@ -3,18 +3,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: "#111827",
-        ocean: "#2563eb",
-        aurora: "#6366f1",
+        ink: "#18181b",
+        ocean: "#be185d",
+        aurora: "#f59e0b",
         saffron: "#f59e0b",
         coral: "#e11d48",
-        steel: "#5b677a",
-        paper: "#f4f7fb",
-        midnight: "#111827"
+        steel: "#625f6b",
+        paper: "#fbf7fa",
+        midnight: "#18181b"
       },
       boxShadow: {
         crisp: "0 14px 34px rgba(15, 23, 42, 0.08)",
-        glow: "0 14px 38px rgba(37, 99, 235, 0.18)"
+        glow: "0 14px 38px rgba(190, 24, 93, 0.18)"
       }
     }
   },

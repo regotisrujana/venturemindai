@@ -86,7 +86,7 @@ function Shell() {
   const navClass = ({ isActive }) =>
     `flex min-h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition ${
       isActive
-        ? "bg-blue-50 text-ocean ring-1 ring-blue-100"
+        ? "bg-rose-50 text-ocean ring-1 ring-rose-100"
         : "text-steel hover:bg-slate-100 hover:text-ink"
     }`;
   return (
@@ -134,7 +134,7 @@ function Shell() {
                 to={href}
                 className={({ isActive }) =>
                   `flex min-h-10 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium transition ${
-                    isActive ? "bg-blue-50 text-ocean ring-1 ring-blue-100" : "text-steel hover:bg-slate-100"
+                    isActive ? "bg-rose-50 text-ocean ring-1 ring-rose-100" : "text-steel hover:bg-slate-100"
                   }`
                 }
               >
@@ -158,7 +158,7 @@ function Landing() {
         <div className="absolute inset-0 bg-slate-950/60" />
         <div className="absolute inset-x-0 top-0 h-1 bg-aurora" />
         <div className="relative mx-auto flex min-h-[88vh] max-w-6xl flex-col justify-center px-6 text-white">
-          <p className="mb-4 text-sm font-semibold uppercase tracking-wide text-blue-200">Multi-agent business intelligence</p>
+          <p className="mb-4 text-sm font-semibold uppercase tracking-wide text-amber-200">Multi-agent business intelligence</p>
           <h1 className="max-w-3xl text-5xl font-bold leading-tight md:text-7xl">VentureMind AI</h1>
           <p className="mt-5 max-w-2xl text-lg text-slate-100">
             Analyze startup ideas, benchmark competitors, generate cited reports, and track research quality from one SaaS workspace.
@@ -198,7 +198,7 @@ function AuthPage({ mode }) {
   }
   return (
     <div className="flex min-h-screen items-center justify-center bg-paper p-4">
-      <form onSubmit={submit} className="panel w-full max-w-md border-blue-100 p-6">
+      <form onSubmit={submit} className="panel w-full max-w-md border-rose-100 p-6">
         <div className="mb-5 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-md bg-ocean text-white shadow-glow"><BrainCircuit size={20} /></div>
           <div>
@@ -238,7 +238,7 @@ function Stat({ label, value, Icon }) {
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-ocean to-aurora" />
       <div className="flex items-center justify-between">
         <p className="text-sm text-steel">{label}</p>
-        {Icon && <span className="relative flex h-9 w-9 items-center justify-center rounded-md bg-blue-50 text-ocean"><Icon size={18} /></span>}
+        {Icon && <span className="relative flex h-9 w-9 items-center justify-center rounded-md bg-rose-50 text-ocean"><Icon size={18} /></span>}
       </div>
       <p className="mt-3 text-3xl font-bold">{value}</p>
     </div>
@@ -329,7 +329,7 @@ function ChartPanel({ title, data }) {
           <XAxis dataKey="name" />
           <YAxis />
           <Tooltip />
-          <Bar dataKey="score" fill="#2563eb" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="score" fill="#be185d" radius={[4, 4, 0, 0]} />
           <Bar dataKey="revenue" fill="#d97706" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
@@ -570,7 +570,7 @@ function VisualAnalytics({ content }) {
             <PolarGrid />
             <PolarAngleAxis dataKey="metric" />
             <PolarRadiusAxis angle={30} domain={[0, 100]} />
-            <Radar dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.28} />
+            <Radar dataKey="score" stroke="#be185d" fill="#be185d" fillOpacity={0.25} />
             <Tooltip />
           </RadarChart>
         </ResponsiveContainer>
@@ -835,9 +835,9 @@ function EvaluationPage() {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={rows}>
             <CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><Tooltip />
-            <Line type="monotone" dataKey="accuracy" stroke="#2563eb" />
+            <Line type="monotone" dataKey="accuracy" stroke="#be185d" />
             <Line type="monotone" dataKey="faithfulness" stroke="#d97706" />
-            <Line type="monotone" dataKey="citation" stroke="#2563eb" />
+            <Line type="monotone" dataKey="citation" stroke="#7c2d12" />
             <Line type="monotone" dataKey="hallucination" stroke="#e11d48" />
           </LineChart>
         </ResponsiveContainer>
@@ -885,7 +885,7 @@ function SettingsPage() {
 function Loading() {
   return (
     <div className="space-y-6">
-      <div className="space-y-2 border-l-4 border-blue-200 pl-4">
+      <div className="space-y-2 border-l-4 border-rose-200 pl-4">
         <div className="skeleton h-8 w-72 max-w-full" />
         <div className="skeleton h-4 w-96 max-w-full" />
       </div>
