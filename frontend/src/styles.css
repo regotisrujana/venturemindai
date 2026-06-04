@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: #f8fafc;
+  color: #17202a;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-ocean focus:ring-offset-2;
+}
+
+.panel {
+  @apply border border-slate-200 bg-white shadow-crisp;
+  border-radius: 8px;
+}
+
+.btn-primary {
+  @apply focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-ocean px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+.btn-secondary {
+  @apply focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-ink hover:bg-slate-50;
+}
+
+.input {
+  @apply focus-ring w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-ink placeholder:text-slate-400;
+}
+
+.label {
+  @apply text-xs font-semibold uppercase tracking-wide text-steel;
+}
