@@ -188,16 +188,29 @@ VITE_API_URL=http://127.0.0.1:8000
 
 ## Screenshots
 
-Screenshot image files should be added inside `docs/screenshots/` before final submission. The paths below are placeholders for the actual PNG files, not external photo links.
+### User Dashboard
 
-| Screen | Screenshot File Path | Description |
-| --- | --- | --- |
-| Login / Register | `docs/screenshots/auth.png` | User authentication screen |
-| Startup Analysis | `docs/screenshots/startup-analysis.png` | Startup idea input and generated analysis |
-| Company Comparison | `docs/screenshots/company-comparison.png` | Side-by-side comparison output |
-| Report Page | `docs/screenshots/report-page.png` | Clean readable report with sources |
-| Admin Evaluation | `docs/screenshots/evaluation-dashboard.png` | Admin-only quality metrics |
-| Admin Security | `docs/screenshots/security-dashboard.png` | Admin-only security logs |
+![User Dashboard](docs/screenshots/user-dashboard.png)
+
+### Dashboard Report History
+
+![Dashboard Report History](docs/screenshots/dashboard-report-list.png)
+
+### Startup Idea Analysis
+
+![Startup Idea Analysis](docs/screenshots/startup-analysis.png)
+
+### Knowledge Base
+
+![Knowledge Base](docs/screenshots/knowledge-base.png)
+
+### Admin Dashboard
+
+![Admin Dashboard](docs/screenshots/admin-dashboard.png)
+
+### Evaluation Dashboard
+
+![Evaluation Dashboard](docs/screenshots/evaluation-dashboard.png)
 
 ## Evaluation
 
