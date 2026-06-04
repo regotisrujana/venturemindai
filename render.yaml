@@ -9,6 +9,8 @@ services:
     envVars:
       - key: ENVIRONMENT
         value: production
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: JWT_SECRET
         sync: false
       - key: DATABASE_URL
