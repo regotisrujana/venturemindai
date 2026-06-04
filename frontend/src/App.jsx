@@ -83,49 +83,65 @@ function Shell() {
     user?.role === "admin"
       ? [...baseNav.slice(0, 4), ...adminNav, baseNav[4]].filter(Boolean)
       : baseNav;
+  const navClass = ({ isActive }) =>
+    `flex min-h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition ${
+      isActive
+        ? "bg-blue-50 text-ocean ring-1 ring-blue-100"
+        : "text-steel hover:bg-slate-100 hover:text-ink"
+    }`;
   return (
     <div className="min-h-screen bg-paper">
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-cyan-400/10 bg-midnight text-white lg:block">
-        <div className="flex h-16 items-center gap-3 border-b border-white/10 px-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-cyan-400 text-midnight shadow-glow"><BrainCircuit size={19} /></div>
+      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-200 bg-white lg:block">
+        <div className="flex h-16 items-center gap-3 border-b border-slate-200 px-5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-ocean text-white shadow-glow"><BrainCircuit size={19} /></div>
           <div>
             <p className="text-sm font-bold">VentureMind AI</p>
-            <p className="text-xs text-cyan-100/80">Strategy intelligence</p>
+            <p className="text-xs text-steel">AI research workspace</p>
           </div>
         </div>
         <nav className="space-y-1 p-3">
           {nav.map(([label, href, Icon]) => (
-            <NavLink
-              key={href}
-              to={href}
-              className={({ isActive }) =>
-                `flex min-h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition ${
-                  isActive
-                    ? "bg-cyan-400/15 text-white ring-1 ring-cyan-300/25"
-                    : "text-slate-300 hover:bg-white/10 hover:text-white"
-                }`
-              }
-            >
+            <NavLink key={href} to={href} className={navClass}>
               <Icon size={17} /> {label}
             </NavLink>
           ))}
         </nav>
       </aside>
       <main className="lg:pl-64">
-        <header className="sticky top-0 z-10 flex min-h-16 items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur lg:px-8">
-          <div>
-            <p className="text-sm font-semibold text-ink">{user?.full_name || "Workspace"}</p>
-            <p className="text-xs text-steel">{user?.role === "admin" ? "Admin console" : "Founder workspace"}</p>
+        <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 backdrop-blur lg:px-8">
+          <div className="flex min-h-16 items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-ocean text-white lg:hidden"><BrainCircuit size={18} /></div>
+              <div>
+                <p className="text-sm font-semibold text-ink">{user?.full_name || "Workspace"}</p>
+                <p className="text-xs text-steel">{user?.role === "admin" ? "Admin console" : "Founder workspace"}</p>
+              </div>
+            </div>
+            <button
+              className="btn-secondary"
+              onClick={() => {
+                clearSession();
+                navigate("/login");
+              }}
+            >
+              <LogOut size={16} /> <span className="hidden sm:inline">Sign out</span>
+            </button>
           </div>
-          <button
-            className="btn-secondary"
-            onClick={() => {
-              clearSession();
-              navigate("/login");
-            }}
-          >
-            <LogOut size={16} /> Sign out
-          </button>
+          <nav className="flex gap-2 overflow-x-auto pb-3 lg:hidden">
+            {nav.map(([label, href, Icon]) => (
+              <NavLink
+                key={href}
+                to={href}
+                className={({ isActive }) =>
+                  `flex min-h-10 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium transition ${
+                    isActive ? "bg-blue-50 text-ocean ring-1 ring-blue-100" : "text-steel hover:bg-slate-100"
+                  }`
+                }
+              >
+                <Icon size={16} /> {label}
+              </NavLink>
+            ))}
+          </nav>
         </header>
         <div className="p-4 lg:p-8">
           <Outlet />
@@ -139,12 +155,12 @@ function Landing() {
   return (
     <div className="min-h-screen bg-paper">
       <section className="relative min-h-[88vh] overflow-hidden bg-[url('https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1800&q=80')] bg-cover bg-center">
-        <div className="absolute inset-0 bg-midnight/75" />
-        <div className="absolute inset-x-0 top-0 h-1 bg-cyan-400" />
+        <div className="absolute inset-0 bg-slate-950/60" />
+        <div className="absolute inset-x-0 top-0 h-1 bg-aurora" />
         <div className="relative mx-auto flex min-h-[88vh] max-w-6xl flex-col justify-center px-6 text-white">
-          <p className="mb-4 text-sm font-semibold uppercase tracking-wide text-cyan-200">Multi-agent business intelligence</p>
+          <p className="mb-4 text-sm font-semibold uppercase tracking-wide text-emerald-200">Multi-agent business intelligence</p>
           <h1 className="max-w-3xl text-5xl font-bold leading-tight md:text-7xl">VentureMind AI</h1>
-          <p className="mt-5 max-w-2xl text-lg text-cyan-50">
+          <p className="mt-5 max-w-2xl text-lg text-slate-100">
             Analyze startup ideas, benchmark competitors, generate cited reports, and track research quality from one SaaS workspace.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
@@ -181,10 +197,10 @@ function AuthPage({ mode }) {
     }
   }
   return (
-    <div className="flex min-h-screen items-center justify-center bg-midnight p-4">
-      <form onSubmit={submit} className="panel w-full max-w-md border-cyan-200/70 p-6 shadow-glow">
+    <div className="flex min-h-screen items-center justify-center bg-paper p-4">
+      <form onSubmit={submit} className="panel w-full max-w-md border-blue-100 p-6">
         <div className="mb-5 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-cyan-400 text-midnight"><BrainCircuit size={20} /></div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-ocean text-white shadow-glow"><BrainCircuit size={20} /></div>
           <div>
             <p className="text-sm font-bold text-ink">VentureMind AI</p>
             <p className="text-xs text-steel">Research workspace</p>
@@ -219,10 +235,10 @@ function Field({ label, value, onChange, type = "text" }) {
 function Stat({ label, value, Icon }) {
   return (
     <div className="panel relative overflow-hidden p-5">
-      <div className="absolute right-0 top-0 h-20 w-20 bg-cyan-100/55 blur-2xl" />
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-ocean to-aurora" />
       <div className="flex items-center justify-between">
         <p className="text-sm text-steel">{label}</p>
-        {Icon && <span className="relative flex h-9 w-9 items-center justify-center rounded-md bg-cyan-50 text-ocean"><Icon size={18} /></span>}
+        {Icon && <span className="relative flex h-9 w-9 items-center justify-center rounded-md bg-blue-50 text-ocean"><Icon size={18} /></span>}
       </div>
       <p className="mt-3 text-3xl font-bold">{value}</p>
     </div>
@@ -294,7 +310,7 @@ function AdminDashboard({ data }) {
 function Page({ title, subtitle, children }) {
   return (
     <div className="space-y-6">
-      <div className="border-l-4 border-cyan-400 pl-4">
+      <div className="border-l-4 border-aurora pl-4">
         <h1 className="text-3xl font-bold tracking-tight text-ink">{title}</h1>
         <p className="mt-1 text-sm text-steel">{subtitle}</p>
       </div>
@@ -867,7 +883,31 @@ function SettingsPage() {
 }
 
 function Loading() {
-  return <div className="panel p-6 text-sm text-steel">Loading workspace data...</div>;
+  return (
+    <div className="space-y-6">
+      <div className="space-y-2 border-l-4 border-blue-200 pl-4">
+        <div className="skeleton h-8 w-72 max-w-full" />
+        <div className="skeleton h-4 w-96 max-w-full" />
+      </div>
+      <div className="grid gap-4 md:grid-cols-4">
+        {[1, 2, 3, 4].map((item) => (
+          <div className="panel p-5" key={item}>
+            <div className="flex items-center justify-between">
+              <div className="skeleton h-4 w-24" />
+              <div className="skeleton h-9 w-9" />
+            </div>
+            <div className="skeleton mt-5 h-9 w-20" />
+          </div>
+        ))}
+      </div>
+      <div className="panel p-5">
+        <div className="skeleton h-5 w-44" />
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((item) => <div className="skeleton h-16" key={item} />)}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ErrorBox({ message }) {
