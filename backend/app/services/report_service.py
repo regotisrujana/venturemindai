@@ -24,9 +24,18 @@ REPORT_SECTION_ORDER = [
     ("sources_used", "Sources Used"),
 ]
 
+COMPANY_COMPARISON_SECTION_ORDER = [
+    ("company_idea_overview", "Company / Idea Overview"),
+    ("market_analysis", "Market Analysis"),
+    ("competitor_analysis", "Competitor Analysis"),
+    ("product_comparison", "Product Comparison"),
+    ("pricing_comparison", "Pricing Comparison"),
+    ("sources_used", "Sources Used"),
+]
+
 
 def format_business_report(raw_agent_output: dict[str, Any]) -> dict[str, Any]:
-    if raw_agent_output.get("formatted_version") == 5:
+    if raw_agent_output.get("formatted_version") == 6:
         return raw_agent_output
 
     query = raw_agent_output.get("query") or raw_agent_output.get("input_text") or "this business question"
@@ -42,25 +51,30 @@ def format_business_report(raw_agent_output: dict[str, Any]) -> dict[str, Any]:
         "competitor_analysis": _competitor_section(query, mode, entities, sources, market),
         "product_comparison": _product_section(query, mode, entities, raw_agent_output, sources, market),
         "pricing_comparison": _pricing_section(sources),
-        "swot_analysis": _swot_section(raw_agent_output, query, sources),
-        "risks": _list_section(_clean_items(raw_agent_output.get("sections", {}).get("risks", {})), "Risks could not be verified beyond collected evidence."),
-        "strategic_recommendations": _strategy_section(raw_agent_output, query, sources, market),
         "sources_used": {
             "paragraphs": ["The report uses only the source links below. Numeric values are omitted when not directly verified."],
             "sources": [{"title": source["title"], "url": source["url"]} for source in sources],
         },
     }
+    if mode != "company_comparison":
+        sections.update(
+            {
+                "swot_analysis": _swot_section(raw_agent_output, query, sources),
+                "risks": _list_section(_clean_items(raw_agent_output.get("sections", {}).get("risks", {})), "Risks could not be verified beyond collected evidence."),
+                "strategic_recommendations": _strategy_section(raw_agent_output, query, sources, market),
+            }
+        )
 
     return {
-        "formatted_version": 5,
+        "formatted_version": 6,
         "title": raw_agent_output.get("title") or f"Business Strategy Report: {str(query)[:80]}",
         "query": query,
         "mode": mode,
         "entities": entities,
         "executive_summary": _executive_summary(query, mode, entities, sources, market),
         "sections": sections,
-        "scorecard": _format_scorecard(raw_agent_output, sources, market),
-        "viability_score": _formatted_viability(raw_agent_output, sources, market),
+        "scorecard": {} if mode == "company_comparison" else _format_scorecard(raw_agent_output, sources, market),
+        "viability_score": 0 if mode == "company_comparison" else _formatted_viability(raw_agent_output, sources, market),
         "confidence_score": confidence,
         "research_summary": raw_agent_output.get("research_summary", {}),
         "market_intelligence": market,
@@ -82,9 +96,11 @@ def format_business_report(raw_agent_output: dict[str, Any]) -> dict[str, Any]:
 def flatten_report(content: dict[str, Any]) -> list[tuple[str, str]]:
     formatted = format_business_report(content)
     rows = [("Executive Summary", formatted.get("executive_summary", ""))]
-    for key, title in REPORT_SECTION_ORDER:
+    section_order = COMPANY_COMPARISON_SECTION_ORDER if formatted.get("mode") == "company_comparison" else REPORT_SECTION_ORDER
+    for key, title in section_order:
         rows.append((title, _section_to_text(formatted.get("sections", {}).get(key, {}))))
-    rows.append(("Business Scorecard", _scorecard_to_text(formatted.get("scorecard", {}))))
+    if formatted.get("mode") != "company_comparison" and formatted.get("scorecard"):
+        rows.append(("Business Scorecard", _scorecard_to_text(formatted.get("scorecard", {}))))
     return rows
 
 

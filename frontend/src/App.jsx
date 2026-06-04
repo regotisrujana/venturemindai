@@ -507,28 +507,33 @@ function ReportViewer() {
   if (loading) return <Loading />;
   if (error) return <ErrorBox message={error} />;
   const sections = data.content.sections || {};
+  const isCompanyComparison = data.mode === "company_comparison" || data.content.mode === "company_comparison";
   const orderedSections = [
     ["company_idea_overview", "Company / Idea Overview"],
     ["market_analysis", "Market Analysis"],
     ["competitor_analysis", "Competitor Analysis"],
     ["product_comparison", "Product Comparison"],
     ["pricing_comparison", "Pricing Comparison"],
-    ["swot_analysis", "SWOT Analysis"],
-    ["risks", "Risks"],
-    ["strategic_recommendations", "Strategic Recommendations"],
+    ...(!isCompanyComparison ? [
+      ["swot_analysis", "SWOT Analysis"],
+      ["risks", "Risks"],
+      ["strategic_recommendations", "Strategic Recommendations"],
+    ] : []),
     ["sources_used", "Sources Used"]
   ];
   return (
-    <Page title={data.title} subtitle={`Viability ${data.viability_score}/100 · Confidence ${Math.round(data.confidence_score * 100)}%`}>
+    <Page title={data.title} subtitle={isCompanyComparison ? `Company comparison · Confidence ${Math.round(data.confidence_score * 100)}%` : `Viability ${data.viability_score}/100 · Confidence ${Math.round(data.confidence_score * 100)}%`}>
       <div className="flex flex-wrap gap-3">
         <a className="btn-primary" href={api.downloadUrl(data.id, "pdf")}><Download size={16} /> PDF</a>
         <a className="btn-secondary" href={api.downloadUrl(data.id, "docx")}><Download size={16} /> DOCX</a>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {Object.entries(data.content.scorecard || {}).map(([key, value]) => (
-          <ScoreCard key={key} label={key.replaceAll("_", " ")} value={value} />
-        ))}
-      </div>
+      {!isCompanyComparison && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Object.entries(data.content.scorecard || {}).map(([key, value]) => (
+            <ScoreCard key={key} label={key.replaceAll("_", " ")} value={value} />
+          ))}
+        </div>
+      )}
       <div className="panel p-5"><h2 className="text-lg font-semibold">Executive Summary</h2><p className="mt-2 text-sm leading-6 text-steel">{data.content.executive_summary}</p></div>
       {orderedSections.filter(([key]) => sections[key]).map(([key, title]) => (
         <div className="panel p-5" key={key}>
