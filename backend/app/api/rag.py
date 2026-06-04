@@ -10,7 +10,7 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models import DocumentChunk, UploadedDocument, User
 from app.schemas import DocumentUploadResponse, SearchRequest, UrlIngestRequest
-from app.services.rag_service import rag_service
+from app.services.rag_service import clean_evidence_text, clean_html_text, rag_service
 
 router = APIRouter(prefix="/rag", tags=["rag"])
 
@@ -32,7 +32,7 @@ async def upload_document(
     db.refresh(document)
     for page_number, text in pages:
         before = len(rag_service._documents)
-        chunk_count += rag_service.ingest(filename, collection, text, page_number=page_number)
+        chunk_count += rag_service.ingest(filename, collection, clean_evidence_text(text), page_number=page_number)
         for item in rag_service._documents[before:]:
             db.add(
                 DocumentChunk(
@@ -60,7 +60,7 @@ async def ingest_url(payload: UrlIngestRequest, db: Session = Depends(get_db), u
     async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
         response = await client.get(payload.url, headers={"User-Agent": "VentureMindAI/1.0"})
         response.raise_for_status()
-    text = strip_html(response.text)
+    text = clean_html_text(response.text)
     filename = str(response.url)
     document = UploadedDocument(user_id=user.id, filename=filename, collection=payload.collection, chunk_count=0, metadata_json={"url": filename})
     db.add(document)
@@ -97,7 +97,4 @@ def extract_pages(filename: str, raw: bytes) -> list[tuple[int | None, str]]:
 
 
 def strip_html(html: str) -> str:
-    import re
-
-    html = re.sub(r"<script.*?</script>|<style.*?</style>", " ", html, flags=re.I | re.S)
-    return re.sub(r"\s+", " ", re.sub(r"<.*?>", " ", html)).strip()
+    return clean_html_text(html)

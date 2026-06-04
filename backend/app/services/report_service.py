@@ -7,6 +7,8 @@ from docx import Document
 from reportlab.lib.pagesizes import LETTER
 from reportlab.pdfgen import canvas
 
+from app.services.rag_service import clean_evidence_text, is_boilerplate_text
+
 
 NOT_VERIFIED = "Not publicly verified from collected sources."
 
@@ -24,7 +26,7 @@ REPORT_SECTION_ORDER = [
 
 
 def format_business_report(raw_agent_output: dict[str, Any]) -> dict[str, Any]:
-    if raw_agent_output.get("formatted_version") == 4:
+    if raw_agent_output.get("formatted_version") == 5:
         return raw_agent_output
 
     query = raw_agent_output.get("query") or raw_agent_output.get("input_text") or "this business question"
@@ -50,7 +52,7 @@ def format_business_report(raw_agent_output: dict[str, Any]) -> dict[str, Any]:
     }
 
     return {
-        "formatted_version": 4,
+        "formatted_version": 5,
         "title": raw_agent_output.get("title") or f"Business Strategy Report: {str(query)[:80]}",
         "query": query,
         "mode": mode,
@@ -463,7 +465,7 @@ def _retrieved_chunks(raw: dict[str, Any], query: str) -> list[dict[str, Any]]:
         if item.get("collection") == "Web Research":
             continue
         text = _clean_text(item.get("text", ""))
-        if text and not _incomplete(text) and _source_relevant_to_query(query, item.get("source", ""), text, ""):
+        if text and not is_boilerplate_text(text) and not _incomplete(text) and _source_relevant_to_query(query, item.get("source", ""), text, ""):
             chunks.append({"source": item.get("source", "Uploaded evidence"), "text": text[:350], "confidence": item.get("confidence", 0.5)})
     return chunks
 
@@ -498,7 +500,14 @@ def _source_sentence(sources: list[dict[str, Any]]) -> str:
 
 
 def _source_bullets(sources: list[dict[str, Any]], source_types: list[str], limit: int = 4) -> list[str]:
-    return [_snippet_to_bullet(source) for source in _filter_sources(sources, source_types)[:limit] if _snippet_to_bullet(source)]
+    bullets = []
+    for source in _filter_sources(sources, source_types):
+        bullet = _snippet_to_bullet(source)
+        if bullet:
+            bullets.append(bullet)
+        if len(bullets) >= limit:
+            break
+    return bullets
 
 
 def _filter_sources(sources: list[dict[str, Any]], source_types: list[str]) -> list[dict[str, Any]]:
@@ -508,11 +517,14 @@ def _filter_sources(sources: list[dict[str, Any]], source_types: list[str]) -> l
 
 def _snippet_to_bullet(source: dict[str, Any]) -> str:
     snippet = _clean_text(source.get("snippet", ""))
-    if not snippet:
+    if not snippet or is_boilerplate_text(snippet):
         return ""
-    sentence = snippet.split(". ")[0].strip()
+    useful_sentences = [sentence for sentence in _sentences(snippet) if not is_boilerplate_text(sentence)]
+    sentence = useful_sentences[0].strip() if useful_sentences else ""
     if len(sentence) < 30:
         sentence = snippet[:180].strip()
+    if not sentence or is_boilerplate_text(sentence) or not _meaningful_evidence_sentence(sentence):
+        return ""
     return f"{sentence.rstrip('.')} ({source.get('title', 'Source')})."
 
 
@@ -562,13 +574,23 @@ def _best_entity_source(entity: str, row_name: str, sources: list[dict[str, Any]
 def _sentences(text: str) -> list[str]:
     cleaned = _clean_text(text)
     chunks = re.split(r"(?<=[.!?])\s+|\s+##+\s+|\s+###\s+", cleaned)
-    return [chunk.strip(" -#") for chunk in chunks if len(chunk.strip()) > 20]
+    return [chunk.strip(" -#") for chunk in chunks if len(chunk.strip()) > 20 and not is_boilerplate_text(chunk)]
 
 
 def _clean_sentence(text: str) -> str:
     cleaned = _clean_text(text).replace("### ", "").replace("## ", "")
     cleaned = cleaned.replace("â€™", "'").replace("Â·", "-")
     return cleaned[:260].rstrip(" ,;:-")
+
+
+def _meaningful_evidence_sentence(text: str) -> bool:
+    lowered = text.lower()
+    if len(lowered) < 55 and not any(term in lowered for term in ("market", "growth", "delivery", "pricing", "revenue", "customer", "competitor", "platform", "business")):
+        return False
+    if "reports, statistics" in lowered and "market" not in lowered:
+        return False
+    action_terms = ("is ", "are ", "has ", "have ", "shows", "reports", "states", "grew", "growth", "offers", "provides", "operates", "delivers", "launched")
+    return any(term in lowered for term in action_terms)
 
 
 def _clean_items(value: Any) -> list[str]:
@@ -677,7 +699,7 @@ def _source_title_for_url(sources: list[dict[str, Any]], url: str) -> str:
 
 
 def _clean_text(value: str) -> str:
-    return " ".join(str(value or "").replace("\n", " ").replace("\r", " ").split())
+    return clean_evidence_text(str(value or "").replace("\n", " ").replace("\r", " "))
 
 
 def _tokens(value: str) -> list[str]:
