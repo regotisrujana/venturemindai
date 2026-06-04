@@ -111,7 +111,7 @@ class AgentWorkflow:
         return state
 
     async def _web_research(self, state: dict[str, Any]) -> dict[str, Any]:
-        sources, rejected = await web_research_service.research(state["query"], mode=state["mode"], limit=8)
+        sources, rejected = await web_research_service.research(state["query"], mode=state["mode"], limit=14)
         state["web_sources"] = [source.__dict__ for source in sources]
         state["rejected_sources"] = rejected
         state["citations"].extend(

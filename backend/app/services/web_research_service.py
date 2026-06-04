@@ -7,6 +7,7 @@ from urllib.parse import quote_plus, urlparse
 import httpx
 
 from app.core.config import get_settings
+from app.services.rag_service import clean_evidence_text, clean_html_text, is_boilerplate_text
 
 
 TRUSTED_DOMAINS = (
@@ -96,7 +97,7 @@ class WebResearchService:
     def __init__(self) -> None:
         self.settings = get_settings()
 
-    async def research(self, query: str, mode: str = "startup", limit: int = 12) -> tuple[list[ResearchSource], list[dict]]:
+    async def research(self, query: str, mode: str = "startup", limit: int = 14) -> tuple[list[ResearchSource], list[dict]]:
         entities = self.extract_entities(query)
         search_tasks = self.build_search_tasks(query, entities, mode)
         sources: list[ResearchSource] = []
@@ -104,24 +105,34 @@ class WebResearchService:
         seen: set[str] = set()
 
         async with httpx.AsyncClient(timeout=6, follow_redirects=True) as client:
+            seeded_sources = await self._known_relevant_sources(client, query, entities)
+            for source in seeded_sources:
+                self._add_source(source, query, sources, rejected, seen)
+                if len(sources) >= limit:
+                    return sources, rejected
+
             for search in search_tasks:
-                provider_results = await self._provider_search(client, search, limit=3)
+                provider_results = await self._provider_search(client, search, limit=5)
                 if not provider_results and not self.settings.search_api_key:
                     provider_results = await self._official_fallback(client, search, entities)
                 if not provider_results:
                     provider_results = await self._duckduckgo(client, search)
                 for source in provider_results:
-                    if source.url in seen:
-                        rejected.append({"url": source.url, "reason": "duplicate"})
-                        continue
-                    if not self._is_usable_source(source):
-                        rejected.append({"url": source.url, "reason": "untrusted_or_empty"})
-                        continue
-                    seen.add(source.url)
-                    sources.append(source)
+                    self._add_source(source, query, sources, rejected, seen)
                     if len(sources) >= limit:
                         return sources, rejected
         return sources, rejected
+
+    def _add_source(self, source: ResearchSource, query: str, sources: list[ResearchSource], rejected: list[dict], seen: set[str]) -> None:
+        key = self._canonical_url(source.url)
+        if key in seen:
+            rejected.append({"url": source.url, "reason": "duplicate"})
+            return
+        if not self._is_usable_source(source, query):
+            rejected.append({"url": source.url, "reason": "untrusted_empty_or_irrelevant"})
+            return
+        seen.add(key)
+        sources.append(source)
 
     def extract_entities(self, query: str) -> list[str]:
         cleaned = re.sub(r"\b(my|startup|company|compare|comparison)\b", " ", query, flags=re.I)
@@ -132,6 +143,13 @@ class WebResearchService:
     def build_search_tasks(self, query: str, entities: list[str], mode: str) -> list[str]:
         tasks = [query]
         startup_terms = self.startup_market_terms(query)
+        for term in startup_terms.get("category_terms", []):
+            tasks.extend(
+                [
+                    f"{term} market size growth competitors",
+                    f"{term} pricing product features",
+                ]
+            )
         if mode == "startup":
             tasks.extend(
                 [
@@ -157,7 +175,7 @@ class WebResearchService:
                     f"{entity} market position competitors business news",
                 ]
             )
-        return tasks[:8]
+        return self._dedupe(tasks)[:12]
 
     def startup_market_terms(self, query: str) -> dict[str, list[str]]:
         lowered = query.lower()
@@ -249,6 +267,46 @@ class WebResearchService:
             for item in response.json().get("web", {}).get("results", [])
         ]
 
+    async def _known_relevant_sources(self, client: httpx.AsyncClient, query: str, entities: list[str]) -> list[ResearchSource]:
+        names = [entity.lower().strip() for entity in entities]
+        market_terms = self.startup_market_terms(query)
+        names.extend(name.lower() for name in market_terms.get("competitors", []))
+        url_names: list[tuple[str, str]] = []
+        for name in names:
+            normalized = re.sub(r"\s+", " ", name).strip()
+            if normalized in KNOWN_COMPANY_URLS:
+                url_names.extend((url, normalized) for url in KNOWN_COMPANY_URLS[normalized])
+            compact = normalized.replace(" ai", "").strip()
+            if compact in KNOWN_COMPANY_URLS:
+                url_names.extend((url, compact) for url in KNOWN_COMPANY_URLS[compact])
+
+        category_terms = " ".join(market_terms.get("category_terms", [])).lower()
+        if "quick commerce" in category_terms or "grocery delivery" in category_terms:
+            url_names.extend([
+                ("https://www.zeptonow.com", "zepto"),
+                ("https://blinkit.com", "blinkit"),
+                ("https://www.swiggy.com/instamart", "swiggy"),
+                ("https://www.bigbasket.com", "bigbasket"),
+            ])
+        if "food delivery" in category_terms or "restaurant delivery" in category_terms:
+            url_names.extend([
+                ("https://www.zomato.com", "zomato"),
+                ("https://www.swiggy.com", "swiggy"),
+                ("https://www.doordash.com", "doordash"),
+                ("https://www.ubereats.com", "uber eats"),
+            ])
+
+        sources: list[ResearchSource] = []
+        seen_urls = set()
+        for url, name in url_names[:18]:
+            canonical = self._canonical_url(url)
+            if canonical in seen_urls:
+                continue
+            seen_urls.add(canonical)
+            source = await self._fetch_page_source(client, url, "known_relevant")
+            sources.append(source or self._source(f"{name.title()} official website", url, self._known_fallback_snippet(name), "known_relevant"))
+        return sources
+
     async def _official_fallback(self, client: httpx.AsyncClient, query: str, entities: list[str]) -> list[ResearchSource]:
         candidates: list[str] = []
         known_matches: list[tuple[str, str]] = []
@@ -268,16 +326,10 @@ class WebResearchService:
                 candidates.extend(urls)
                 known_matches.append((name, urls[0]))
         sources = []
-        for url in candidates[:8]:
-            try:
-                response = await client.get(url, headers={"User-Agent": "VentureMindAI/1.0 research bot"})
-                if response.status_code >= 400:
-                    continue
-                title = self._title(response.text) or urlparse(url).netloc
-                snippet = self._snippet(response.text)
-                sources.append(self._source(title, str(response.url), snippet, "official_fallback"))
-            except httpx.HTTPError:
-                continue
+        for url in self._dedupe(candidates)[:10]:
+            source = await self._fetch_page_source(client, url, "official_fallback")
+            if source:
+                sources.append(source)
         if not sources:
             for name, url in known_matches:
                 sources.append(
@@ -289,6 +341,17 @@ class WebResearchService:
                     )
                 )
         return sources
+
+    async def _fetch_page_source(self, client: httpx.AsyncClient, url: str, provider: str) -> ResearchSource | None:
+        try:
+            response = await client.get(url, headers={"User-Agent": "VentureMindAI/1.0 research bot"})
+            if response.status_code >= 400:
+                return None
+            title = self._title(response.text) or urlparse(str(response.url)).netloc
+            snippet = self._snippet(response.text)
+            return self._source(title, str(response.url), snippet, provider)
+        except httpx.HTTPError:
+            return None
 
     def _known_fallback_snippet(self, name: str) -> str:
         if name in {"zepto", "blinkit"}:
@@ -311,8 +374,8 @@ class WebResearchService:
 
     def _source(self, title: str, url: str, snippet: str, provider: str) -> ResearchSource:
         clean_url = unescape(url)
-        clean_title = self._strip_html(title)[:255] or "Untitled source"
-        clean_snippet = self._strip_html(snippet)[:900]
+        clean_title = clean_evidence_text(self._strip_html(title))[:255] or "Untitled source"
+        clean_snippet = clean_evidence_text(self._strip_html(snippet))[:900]
         source_type = self._source_type(clean_url, clean_title, clean_snippet)
         return ResearchSource(
             title=clean_title,
@@ -328,7 +391,7 @@ class WebResearchService:
         return self._strip_html(match.group(1)) if match else ""
 
     def _snippet(self, html: str) -> str:
-        text = self._strip_html(re.sub(r"<script.*?</script>|<style.*?</style>", " ", html, flags=re.I | re.S))
+        text = clean_html_text(html)
         return text[:900]
 
     def _strip_html(self, value: str) -> str:
@@ -351,14 +414,46 @@ class WebResearchService:
         snippet_score = min(0.1, len(snippet) / 2000)
         return round(min(0.96, domain_score + provider_score + snippet_score), 2)
 
-    def _is_usable_source(self, source: ResearchSource) -> bool:
+    def _is_usable_source(self, source: ResearchSource, query: str = "") -> bool:
         if not source.url or not source.snippet:
+            return False
+        if is_boilerplate_text(source.snippet):
             return False
         bad_markers = ("unsupported browser", "enable javascript", "access denied", "captcha", "please update your browser")
         if any(marker in source.snippet.lower() for marker in bad_markers):
             return False
         host = urlparse(source.url).netloc.lower()
-        return bool(host)
+        if not host:
+            return False
+        return self._relevant_to_query(query, source)
+
+    def _relevant_to_query(self, query: str, source: ResearchSource) -> bool:
+        if not query:
+            return True
+        market_terms = self.startup_market_terms(query)
+        anchors = set(re.findall(r"[a-z0-9]+", query.lower()))
+        anchors.update(token for term in market_terms.get("category_terms", []) for token in re.findall(r"[a-z0-9]+", term.lower()))
+        anchors.update(token for name in market_terms.get("competitors", []) for token in re.findall(r"[a-z0-9]+", name.lower()))
+        anchors -= {"ai", "app", "business", "company", "delivery", "for", "idea", "market", "platform", "product", "startup", "the", "vs"}
+        if not anchors:
+            return True
+        haystack = set(re.findall(r"[a-z0-9]+", f"{source.title} {source.url} {source.snippet}".lower()))
+        return bool(anchors & haystack)
+
+    def _canonical_url(self, url: str) -> str:
+        parsed = urlparse(url)
+        path = parsed.path.rstrip("/") or "/"
+        return f"{parsed.netloc.lower()}{path}".replace("www.", "")
+
+    def _dedupe(self, items: list[str]) -> list[str]:
+        seen = set()
+        result = []
+        for item in items:
+            key = item.strip().lower()
+            if key and key not in seen:
+                seen.add(key)
+                result.append(item)
+        return result
 
 
 web_research_service = WebResearchService()
