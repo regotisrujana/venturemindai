@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Link, Navigate, Outlet, Route, BrowserRouter as Router, Routes, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, NavLink, Outlet, Route, BrowserRouter as Router, Routes, useNavigate, useParams } from "react-router-dom";
 import {
   Activity,
   BarChart3,
@@ -85,24 +85,34 @@ function Shell() {
       : baseNav;
   return (
     <div className="min-h-screen bg-paper">
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-200 bg-white lg:block">
-        <div className="flex h-16 items-center gap-3 border-b border-slate-200 px-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-ocean text-white"><BrainCircuit size={19} /></div>
+      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-cyan-400/10 bg-midnight text-white lg:block">
+        <div className="flex h-16 items-center gap-3 border-b border-white/10 px-5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-cyan-400 text-midnight shadow-glow"><BrainCircuit size={19} /></div>
           <div>
             <p className="text-sm font-bold">VentureMind AI</p>
-            <p className="text-xs text-steel">Strategy intelligence</p>
+            <p className="text-xs text-cyan-100/80">Strategy intelligence</p>
           </div>
         </div>
         <nav className="space-y-1 p-3">
           {nav.map(([label, href, Icon]) => (
-            <Link key={href} to={href} className="flex min-h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-steel hover:bg-slate-100 hover:text-ink">
+            <NavLink
+              key={href}
+              to={href}
+              className={({ isActive }) =>
+                `flex min-h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition ${
+                  isActive
+                    ? "bg-cyan-400/15 text-white ring-1 ring-cyan-300/25"
+                    : "text-slate-300 hover:bg-white/10 hover:text-white"
+                }`
+              }
+            >
               <Icon size={17} /> {label}
-            </Link>
+            </NavLink>
           ))}
         </nav>
       </aside>
       <main className="lg:pl-64">
-        <header className="sticky top-0 z-10 flex min-h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-8">
+        <header className="sticky top-0 z-10 flex min-h-16 items-center justify-between border-b border-slate-200/80 bg-white/90 px-4 backdrop-blur lg:px-8">
           <div>
             <p className="text-sm font-semibold text-ink">{user?.full_name || "Workspace"}</p>
             <p className="text-xs text-steel">{user?.role === "admin" ? "Admin console" : "Founder workspace"}</p>
@@ -129,11 +139,12 @@ function Landing() {
   return (
     <div className="min-h-screen bg-paper">
       <section className="relative min-h-[88vh] overflow-hidden bg-[url('https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1800&q=80')] bg-cover bg-center">
-        <div className="absolute inset-0 bg-slate-950/60" />
+        <div className="absolute inset-0 bg-midnight/75" />
+        <div className="absolute inset-x-0 top-0 h-1 bg-cyan-400" />
         <div className="relative mx-auto flex min-h-[88vh] max-w-6xl flex-col justify-center px-6 text-white">
-          <p className="mb-4 text-sm font-semibold uppercase tracking-wide text-amber-200">Multi-agent business intelligence</p>
+          <p className="mb-4 text-sm font-semibold uppercase tracking-wide text-cyan-200">Multi-agent business intelligence</p>
           <h1 className="max-w-3xl text-5xl font-bold leading-tight md:text-7xl">VentureMind AI</h1>
-          <p className="mt-5 max-w-2xl text-lg text-slate-100">
+          <p className="mt-5 max-w-2xl text-lg text-cyan-50">
             Analyze startup ideas, benchmark competitors, generate cited reports, and track research quality from one SaaS workspace.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
@@ -170,8 +181,15 @@ function AuthPage({ mode }) {
     }
   }
   return (
-    <div className="flex min-h-screen items-center justify-center bg-paper p-4">
-      <form onSubmit={submit} className="panel w-full max-w-md p-6">
+    <div className="flex min-h-screen items-center justify-center bg-midnight p-4">
+      <form onSubmit={submit} className="panel w-full max-w-md border-cyan-200/70 p-6 shadow-glow">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-cyan-400 text-midnight"><BrainCircuit size={20} /></div>
+          <div>
+            <p className="text-sm font-bold text-ink">VentureMind AI</p>
+            <p className="text-xs text-steel">Research workspace</p>
+          </div>
+        </div>
         <div className="mb-6">
           <h1 className="text-2xl font-bold">{mode === "login" ? "Welcome back" : "Create workspace"}</h1>
           <p className="mt-1 text-sm text-steel">Secure access with JWT and role-based permissions.</p>
@@ -200,10 +218,11 @@ function Field({ label, value, onChange, type = "text" }) {
 
 function Stat({ label, value, Icon }) {
   return (
-    <div className="panel p-5">
+    <div className="panel relative overflow-hidden p-5">
+      <div className="absolute right-0 top-0 h-20 w-20 bg-cyan-100/55 blur-2xl" />
       <div className="flex items-center justify-between">
         <p className="text-sm text-steel">{label}</p>
-        {Icon && <Icon className="text-ocean" size={18} />}
+        {Icon && <span className="relative flex h-9 w-9 items-center justify-center rounded-md bg-cyan-50 text-ocean"><Icon size={18} /></span>}
       </div>
       <p className="mt-3 text-3xl font-bold">{value}</p>
     </div>
@@ -275,8 +294,8 @@ function AdminDashboard({ data }) {
 function Page({ title, subtitle, children }) {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">{title}</h1>
+      <div className="border-l-4 border-cyan-400 pl-4">
+        <h1 className="text-3xl font-bold tracking-tight text-ink">{title}</h1>
         <p className="mt-1 text-sm text-steel">{subtitle}</p>
       </div>
       {children}
