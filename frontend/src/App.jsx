@@ -158,7 +158,7 @@ function Landing() {
         <div className="absolute inset-0 bg-slate-950/60" />
         <div className="absolute inset-x-0 top-0 h-1 bg-aurora" />
         <div className="relative mx-auto flex min-h-[88vh] max-w-6xl flex-col justify-center px-6 text-white">
-          <p className="mb-4 text-sm font-semibold uppercase tracking-wide text-emerald-200">Multi-agent business intelligence</p>
+          <p className="mb-4 text-sm font-semibold uppercase tracking-wide text-blue-200">Multi-agent business intelligence</p>
           <h1 className="max-w-3xl text-5xl font-bold leading-tight md:text-7xl">VentureMind AI</h1>
           <p className="mt-5 max-w-2xl text-lg text-slate-100">
             Analyze startup ideas, benchmark competitors, generate cited reports, and track research quality from one SaaS workspace.
@@ -329,7 +329,7 @@ function ChartPanel({ title, data }) {
           <XAxis dataKey="name" />
           <YAxis />
           <Tooltip />
-          <Bar dataKey="score" fill="#0f766e" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="score" fill="#2563eb" radius={[4, 4, 0, 0]} />
           <Bar dataKey="revenue" fill="#d97706" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
@@ -570,7 +570,7 @@ function VisualAnalytics({ content }) {
             <PolarGrid />
             <PolarAngleAxis dataKey="metric" />
             <PolarRadiusAxis angle={30} domain={[0, 100]} />
-            <Radar dataKey="score" stroke="#0f766e" fill="#0f766e" fillOpacity={0.35} />
+            <Radar dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.28} />
             <Tooltip />
           </RadarChart>
         </ResponsiveContainer>
@@ -835,7 +835,7 @@ function EvaluationPage() {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={rows}>
             <CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><Tooltip />
-            <Line type="monotone" dataKey="accuracy" stroke="#0f766e" />
+            <Line type="monotone" dataKey="accuracy" stroke="#2563eb" />
             <Line type="monotone" dataKey="faithfulness" stroke="#d97706" />
             <Line type="monotone" dataKey="citation" stroke="#2563eb" />
             <Line type="monotone" dataKey="hallucination" stroke="#e11d48" />

@@ -5,12 +5,12 @@ export default {
       colors: {
         ink: "#111827",
         ocean: "#2563eb",
-        aurora: "#10b981",
+        aurora: "#6366f1",
         saffron: "#f59e0b",
         coral: "#e11d48",
         steel: "#5b677a",
         paper: "#f4f7fb",
-        midnight: "#10201b"
+        midnight: "#111827"
       },
       boxShadow: {
         crisp: "0 14px 34px rgba(15, 23, 42, 0.08)",
