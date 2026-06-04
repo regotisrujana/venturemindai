@@ -1,5 +1,6 @@
 from io import BytesIO
 import re
+import unicodedata
 from textwrap import wrap
 from typing import Any
 
@@ -35,7 +36,7 @@ COMPANY_COMPARISON_SECTION_ORDER = [
 
 
 def format_business_report(raw_agent_output: dict[str, Any]) -> dict[str, Any]:
-    if raw_agent_output.get("formatted_version") == 6:
+    if raw_agent_output.get("formatted_version") == 7:
         return raw_agent_output
 
     query = raw_agent_output.get("query") or raw_agent_output.get("input_text") or "this business question"
@@ -66,7 +67,7 @@ def format_business_report(raw_agent_output: dict[str, Any]) -> dict[str, Any]:
         )
 
     return {
-        "formatted_version": 6,
+        "formatted_version": 7,
         "title": raw_agent_output.get("title") or f"Business Strategy Report: {str(query)[:80]}",
         "query": query,
         "mode": mode,
@@ -198,8 +199,11 @@ def _market_section(query: str, sources: list[dict[str, Any]], market: dict[str,
 def _competitor_section(query: str, mode: str, entities: list[str], sources: list[dict[str, Any]], market: dict[str, Any]) -> dict[str, Any]:
     if mode == "company_comparison" and len(entities) >= 2:
         return {
-            "paragraphs": [f"The comparison focuses on {', '.join(entities)} using public evidence. Missing fields are intentionally marked as not publicly verified."],
-            "table": _side_by_side_table(entities, sources),
+            "paragraphs": [
+                f"The comparison focuses on {', '.join(entities)} using collected public evidence. "
+                "Each cell is filled only when evidence for that specific company was found; otherwise it is marked as not publicly verified."
+            ],
+            "table": _company_comparison_table(entities, sources),
         }
     competitors = market.get("existing_competitors", [])
     if competitors:
@@ -228,11 +232,11 @@ def _competitor_section(query: str, mode: str, entities: list[str], sources: lis
 
 
 def _product_section(query: str, mode: str, entities: list[str], raw: dict[str, Any], sources: list[dict[str, Any]], market: dict[str, Any]) -> dict[str, Any]:
-    product_sources = _filter_sources(sources, ["product", "official", "about"])
+    product_sources = _filter_sources(sources, ["product", "official", "about", "business", "pricing"])
     if mode == "company_comparison" and len(entities) >= 2:
         return {
-            "paragraphs": ["Product comparison uses collected official/product evidence. Unverified capabilities are not treated as confirmed."],
-            "table": _side_by_side_table(entities, product_sources or sources, rows=("Positioning", "Product evidence", "Customer focus")),
+            "paragraphs": ["Product comparison uses official/product evidence and clean source snippets. Generic or unsupported feature claims are not treated as confirmed."],
+            "table": _side_by_side_table(entities, product_sources or sources, rows=("Core offering", "Delivery / commerce focus", "Customer focus")),
         }
     competitors = market.get("existing_competitors", [])
     if competitors:
@@ -254,9 +258,12 @@ def _pricing_section(sources: list[dict[str, Any]]) -> dict[str, Any]:
     pricing_sources = _filter_sources(sources, ["pricing"])
     if not pricing_sources:
         return {"paragraphs": [NOT_VERIFIED], "bullets": ["Collect official pricing pages before setting price benchmarks."]}
+    bullets = _source_bullets(pricing_sources, ["pricing"], limit=5)
+    if not bullets:
+        return {"paragraphs": [NOT_VERIFIED], "bullets": ["No clean pricing or commission evidence was found in collected sources."]}
     return {
         "paragraphs": ["Pricing analysis uses official or pricing-related sources collected during research."],
-        "bullets": _source_bullets(pricing_sources, ["pricing"], limit=5),
+        "bullets": bullets,
     }
 
 
@@ -427,7 +434,7 @@ def _unique_sources(raw: dict[str, Any], query: str) -> list[dict[str, Any]]:
             continue
         if not _source_relevant_to_query(query, title, snippet, url):
             continue
-        key = url or f"{title}:{snippet[:80]}"
+        key = _source_key(url, title)
         if key in seen or _incomplete(snippet):
             continue
         seen.add(key)
@@ -442,6 +449,13 @@ def _unique_sources(raw: dict[str, Any], query: str) -> list[dict[str, Any]]:
             }
         )
     return sources[:20]
+
+
+def _source_key(url: str, title: str) -> str:
+    if url:
+        clean_url = url.lower().replace("https://", "").replace("http://", "")
+        return re.sub(r"^www\.", "", re.sub(r"/+$", "", clean_url))
+    return re.sub(r"[^a-z0-9]+", " ", title.lower()).strip()
 
 
 def _source_relevant_to_query(query: str, title: str, snippet: str, url: str) -> bool:
@@ -536,6 +550,17 @@ def _snippet_to_bullet(source: dict[str, Any]) -> str:
     if not snippet or is_boilerplate_text(snippet):
         return ""
     useful_sentences = [sentence for sentence in _sentences(snippet) if not is_boilerplate_text(sentence)]
+    if "pricing" in str(source.get("source_type", "")).lower():
+        pricing_sentence = next(
+            (
+                sentence
+                for sentence in useful_sentences
+                if any(term in sentence.lower() for term in ("pricing", "price", "fee", "fees", "commission", "cost", "ad spend", "promotional"))
+            ),
+            "",
+        )
+        if pricing_sentence:
+            return f"{pricing_sentence.rstrip('.')} ({source.get('title', 'Source')})."
     sentence = useful_sentences[0].strip() if useful_sentences else ""
     if len(sentence) < 30:
         sentence = snippet[:180].strip()
@@ -554,6 +579,18 @@ def _side_by_side_table(entities: list[str], sources: list[dict[str, Any]], rows
     return table
 
 
+def _company_comparison_table(entities: list[str], sources: list[dict[str, Any]]) -> list[dict[str, str]]:
+    rows = (
+        "Business model",
+        "Market presence",
+        "Product focus",
+        "Pricing / fees",
+        "Business signals",
+        "Evidence limitation",
+    )
+    return _side_by_side_table(entities, sources, rows=rows)
+
+
 def _entity_evidence_text(entity: str, row_name: str, sources: list[dict[str, Any]]) -> str:
     source = _best_entity_source(entity, row_name, sources)
     if not source:
@@ -567,10 +604,18 @@ def _entity_evidence_text(entity: str, row_name: str, sources: list[dict[str, An
 def _best_entity_source(entity: str, row_name: str, sources: list[dict[str, Any]]) -> dict[str, Any] | None:
     entity_l = entity.lower()
     terms_by_row = {
+        "business model": ["business", "model", "delivery", "commerce", "restaurant", "dine", "quick commerce", "grocery", "subscription"],
+        "market presence": ["market", "share", "cities", "city", "valuation", "investor", "position", "dominant", "presence"],
+        "product focus": ["product", "platform", "delivery", "service", "vertical", "quick", "instamart", "blinkit", "dining", "events"],
+        "pricing / fees": ["pricing", "price", "fee", "commission", "subscription", "plan", "cost", "ad spend", "promotional"],
+        "business signals": ["revenue", "profit", "profitability", "market capitalization", "valuation", "growth", "ipo", "investor", "share", "holds", "leads"],
+        "evidence limitation": ["official website", "reference", "verify", "not financial", "source", "citation"],
         "market evidence": ["market", "share", "growth", "valuation", "investor", "position", "dominant"],
         "product evidence": ["product", "platform", "delivery", "service", "vertical", "quick", "instamart", "blinkit"],
         "pricing evidence": ["pricing", "price", "fee", "commission", "subscription", "plan"],
         "positioning": ["position", "market", "focus", "brand", "customer"],
+        "core offering": ["official website", "product", "platform", "delivery", "restaurant", "commerce", "service"],
+        "delivery / commerce focus": ["delivery", "commerce", "grocery", "instamart", "blinkit", "restaurant", "dine", "events", "quick"],
         "customer focus": ["customer", "user", "consumer", "merchant", "restaurant"],
     }
     terms = terms_by_row.get(row_name.lower(), row_name.lower().split())
@@ -584,7 +629,7 @@ def _best_entity_source(entity: str, row_name: str, sources: list[dict[str, Any]
             if any(term in lowered for term in terms):
                 return candidate
             fallback = fallback or candidate
-    return fallback if row_name.lower() in {"market evidence", "positioning", "customer focus"} else None
+    return fallback if row_name.lower() in {"market evidence", "positioning", "customer focus", "business model", "market presence", "product focus", "business signals", "core offering", "delivery / commerce focus", "evidence limitation"} else None
 
 
 def _sentences(text: str) -> list[str]:
@@ -595,7 +640,7 @@ def _sentences(text: str) -> list[str]:
 
 def _clean_sentence(text: str) -> str:
     cleaned = _clean_text(text).replace("### ", "").replace("## ", "")
-    cleaned = cleaned.replace("â€™", "'").replace("Â·", "-")
+    cleaned = _fix_mojibake(cleaned)
     return cleaned[:260].rstrip(" ,;:-")
 
 
@@ -715,7 +760,27 @@ def _source_title_for_url(sources: list[dict[str, Any]], url: str) -> str:
 
 
 def _clean_text(value: str) -> str:
-    return clean_evidence_text(str(value or "").replace("\n", " ").replace("\r", " "))
+    return _fix_mojibake(clean_evidence_text(str(value or "").replace("\n", " ").replace("\r", " ")))
+
+
+def _fix_mojibake(value: str) -> str:
+    text = str(value or "")
+    replacements = {
+        "â€™": "'",
+        "â€˜": "'",
+        "â€œ": '"',
+        "â€": '"',
+        "â€“": "-",
+        "â€”": "-",
+        "Â·": "-",
+        "Â": "",
+        "&amp;": "&",
+    }
+    for bad, good in replacements.items():
+        text = text.replace(bad, good)
+    text = "".join(ch for ch in unicodedata.normalize("NFKD", text) if not unicodedata.combining(ch))
+    text = "".join(ch for ch in text if ch.isprintable())
+    return " ".join(text.split())
 
 
 def _tokens(value: str) -> list[str]:
