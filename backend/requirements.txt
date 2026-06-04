@@ -14,7 +14,3 @@ httpx==0.28.1
 reportlab==4.2.5
 python-docx==1.1.2
 pypdf==5.1.0
-langchain==0.3.11
-langgraph==0.2.59
-chromadb==0.5.23; platform_system != "Windows"
-ragas==0.2.8
