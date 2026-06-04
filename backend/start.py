@@ -12,6 +12,26 @@ def main() -> None:
         from app.main import app
 
         print("Imported FastAPI app successfully.", flush=True)
+        if not any(getattr(route, "path", "") == "/api/health" for route in app.routes):
+            @app.get("/api/health")
+            def render_health():
+                return {"status": "ok", "service": "VentureMind AI", "environment": os.environ.get("ENVIRONMENT", "production")}
+
+        if not any(getattr(route, "path", "") == "/api/health/db" for route in app.routes):
+            @app.get("/api/health/db")
+            def render_database_health():
+                from sqlalchemy import text
+
+                from app.core.database import engine
+
+                try:
+                    with engine.connect() as connection:
+                        connection.execute(text("SELECT 1"))
+                    return {"status": "ok", "database": "postgresql"}
+                except Exception as exc:
+                    return {"status": "error", "database": "postgresql", "detail": str(exc)}
+
+        print("Registered routes:", [getattr(route, "path", "") for route in app.routes], flush=True)
         uvicorn.run(
             app,
             host="0.0.0.0",
