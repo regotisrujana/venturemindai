@@ -263,7 +263,5 @@ outputs/        Generated local outputs, ignored from Git
 
 ## Author Info
 
-**Name:** Regoti Srujana  
-**PIN:** 24EG505H01  
-**Branch:** CSE  
+**Name:** Regoti Srujana   
 **GitHub:** [regotisrujana](https://github.com/regotisrujana)
