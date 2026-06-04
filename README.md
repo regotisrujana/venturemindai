@@ -188,9 +188,9 @@ VITE_API_URL=http://127.0.0.1:8000
 
 ## Screenshots
 
-Add project screenshots inside `docs/screenshots/` before final submission.
+Screenshot image files should be added inside `docs/screenshots/` before final submission. The paths below are placeholders for the actual PNG files, not external photo links.
 
-| Screen | Suggested File | Description |
+| Screen | Screenshot File Path | Description |
 | --- | --- | --- |
 | Login / Register | `docs/screenshots/auth.png` | User authentication screen |
 | Startup Analysis | `docs/screenshots/startup-analysis.png` | Startup idea input and generated analysis |
@@ -254,4 +254,3 @@ outputs/        Generated local outputs, ignored from Git
 **PIN:** 24EG505H01  
 **Branch:** CSE  
 **GitHub:** [regotisrujana](https://github.com/regotisrujana)
-
