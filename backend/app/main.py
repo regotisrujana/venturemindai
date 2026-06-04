@@ -48,6 +48,11 @@ def database_health():
     return {"status": "ok", "database": "postgresql"}
 
 
+@app.get("/health/db")
+def database_health_alias():
+    return database_health()
+
+
 app.include_router(auth.router, prefix="/api")
 app.include_router(analysis.router, prefix="/api")
 app.include_router(rag.router, prefix="/api")
