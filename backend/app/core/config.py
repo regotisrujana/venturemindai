@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     chroma_path: str = "./chroma"
     langchain_tracing_v2: bool = False
     langchain_api_key: str = ""
-    allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173,https://venturemindai-taupe.vercel.app"
     rate_limit: str = "120/minute"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
