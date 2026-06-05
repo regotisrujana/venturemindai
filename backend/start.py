@@ -10,8 +10,15 @@ def main() -> None:
     print(f"Starting VentureMind AI API on 0.0.0.0:{port}", flush=True)
     try:
         from app.main import app
+        from app.core.database import Base, engine
 
         print("Imported FastAPI app successfully.", flush=True)
+        try:
+            Base.metadata.create_all(bind=engine)
+            print("Database tables verified before server start.", flush=True)
+        except Exception:
+            print("Database table verification failed before server start:", flush=True)
+            traceback.print_exc()
         if not any(getattr(route, "path", "") == "/api/health" for route in app.routes):
             @app.get("/api/health")
             def render_health():
