@@ -23,7 +23,16 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> list[str]:
-        return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
+        origins = [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
+        required_origins = [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "https://venturemindai-taupe.vercel.app",
+        ]
+        for origin in required_origins:
+            if origin not in origins:
+                origins.append(origin)
+        return origins
 
     @property
     def is_postgresql(self) -> bool:
