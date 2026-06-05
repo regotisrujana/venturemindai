@@ -596,7 +596,7 @@ def _entity_evidence_text(entity: str, row_name: str, sources: list[dict[str, An
     if not source:
         return ""
     sentence = source.get("sentence") or _clean_sentence(source.get("snippet", ""))
-    if not sentence:
+    if not sentence or not _sentence_valid_for_row(sentence, row_name):
         return ""
     return f"{sentence} ({source.get('title', 'Source')})."
 
@@ -604,9 +604,9 @@ def _entity_evidence_text(entity: str, row_name: str, sources: list[dict[str, An
 def _best_entity_source(entity: str, row_name: str, sources: list[dict[str, Any]]) -> dict[str, Any] | None:
     entity_l = entity.lower()
     terms_by_row = {
-        "business model": ["business", "model", "delivery", "commerce", "restaurant", "dine", "quick commerce", "grocery", "subscription"],
+        "business model": ["business model", "restaurant partner", "merchant", "marketplace", "delivery partner", "commerce", "quick commerce", "subscription"],
         "market presence": ["market", "share", "cities", "city", "valuation", "investor", "position", "dominant", "presence"],
-        "product focus": ["product", "platform", "delivery", "service", "vertical", "quick", "instamart", "blinkit", "dining", "events"],
+        "product focus": ["product", "service", "vertical", "quick commerce", "instamart", "blinkit", "dining", "events", "restaurant delivery", "grocery"],
         "pricing / fees": ["pricing", "price", "fee", "commission", "subscription", "plan", "cost", "ad spend", "promotional"],
         "business signals": ["revenue", "profit", "profitability", "market capitalization", "valuation", "growth", "ipo", "investor", "share", "holds", "leads"],
         "evidence limitation": ["official website", "reference", "verify", "not financial", "source", "citation"],
@@ -614,22 +614,47 @@ def _best_entity_source(entity: str, row_name: str, sources: list[dict[str, Any]
         "product evidence": ["product", "platform", "delivery", "service", "vertical", "quick", "instamart", "blinkit"],
         "pricing evidence": ["pricing", "price", "fee", "commission", "subscription", "plan"],
         "positioning": ["position", "market", "focus", "brand", "customer"],
-        "core offering": ["official website", "product", "platform", "delivery", "restaurant", "commerce", "service"],
+        "core offering": ["product", "service", "delivery", "restaurant delivery", "commerce", "grocery", "quick commerce"],
         "delivery / commerce focus": ["delivery", "commerce", "grocery", "instamart", "blinkit", "restaurant", "dine", "events", "quick"],
         "customer focus": ["customer", "user", "consumer", "merchant", "restaurant"],
     }
     terms = terms_by_row.get(row_name.lower(), row_name.lower().split())
-    fallback = None
     for source in sources:
         for sentence in _sentences(source.get("snippet", "")):
             lowered = sentence.lower()
             if entity_l not in lowered:
                 continue
             candidate = {**source, "sentence": _clean_sentence(sentence)}
-            if any(term in lowered for term in terms):
+            if any(term in lowered for term in terms) and _sentence_valid_for_row(sentence, row_name):
                 return candidate
-            fallback = fallback or candidate
-    return fallback if row_name.lower() in {"market evidence", "positioning", "customer focus", "business model", "market presence", "product focus", "business signals", "core offering", "delivery / commerce focus", "evidence limitation"} else None
+    return None
+
+
+def _sentence_valid_for_row(sentence: str, row_name: str) -> bool:
+    lowered = sentence.lower()
+    row = row_name.lower()
+    generic_official = "official website reference" in lowered or "use this citation to verify" in lowered
+    if generic_official and row != "evidence limitation":
+        return False
+    pricing_terms = ("price", "pricing", "fee", "fees", "commission", "cost", "charges", "ad spend", "promotional")
+    financial_terms = ("revenue", "profit", "profitability", "market capitalization", "valuation", "funding", "ipo")
+    if any(term in lowered for term in pricing_terms) and row not in {"pricing / fees", "pricing evidence"}:
+        return False
+    if any(term in lowered for term in financial_terms) and row not in {"business signals", "market presence", "market evidence"}:
+        return False
+    if row in {"pricing / fees", "pricing evidence"}:
+        return any(term in lowered for term in pricing_terms)
+    if row == "business signals":
+        return any(term in lowered for term in financial_terms + ("growth", "market share", "investor", "annual report"))
+    if row == "market presence":
+        return any(term in lowered for term in ("market", "share", "cities", "city", "presence", "valuation", "growth", "leader", "operates"))
+    if row in {"product focus", "core offering", "delivery / commerce focus"}:
+        return any(term in lowered for term in ("product", "service", "delivery", "commerce", "restaurant", "grocery", "instamart", "blinkit", "dining", "events"))
+    if row == "customer focus":
+        return any(term in lowered for term in ("customer", "consumer", "user", "restaurant", "merchant", "partner"))
+    if row == "business model":
+        return any(term in lowered for term in ("business model", "marketplace", "partner", "merchant", "commission", "subscription", "commerce"))
+    return True
 
 
 def _sentences(text: str) -> list[str]:

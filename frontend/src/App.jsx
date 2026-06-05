@@ -709,7 +709,7 @@ function CleanTable({ rows }) {
         <tbody>
           {rows.map((row, index) => (
             <tr className="border-t border-slate-200" key={index}>
-              {columns.map((column) => <td className="p-3 align-top" key={column}>{formatCell(row[column])}</td>)}
+              {columns.map((column) => <td className="max-w-[28rem] whitespace-normal break-words p-3 align-top leading-6" key={column}>{formatCell(row[column])}</td>)}
             </tr>
           ))}
         </tbody>
