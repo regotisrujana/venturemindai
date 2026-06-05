@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || "";
+const API_URL = import.meta.env.VITE_API_URL || "https://venturemindai-3q51.onrender.com";
 
 export function getToken() {
   return localStorage.getItem("venturemind_token");
@@ -28,7 +28,7 @@ async function request(path, options = {}) {
   try {
     response = await fetch(`${API_URL}${path}`, { ...options, headers });
   } catch (error) {
-    throw new Error("Cannot reach VentureMind API. Make sure both the Vite frontend and FastAPI backend are running.");
+    throw new Error(`Cannot reach VentureMind API at ${API_URL}. Check backend health and CORS settings.`);
   }
   if (!response.ok) {
     const data = await response.json().catch(() => ({ detail: response.statusText }));
