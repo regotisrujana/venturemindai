@@ -191,6 +191,10 @@ def _market_section(query: str, sources: list[dict[str, Any]], market: dict[str,
     category_terms = market.get("category_terms", [])
     if category_terms:
         paragraphs.append(f"The research agent searched this as: {', '.join(category_terms)}.")
+    if not bullets and " vs " in query.lower():
+        bullets = _source_bullets(sources, ["product", "official", "financial"], limit=4)
+        if bullets:
+            paragraphs.append("Collected public sources verify company and product presence, but exact market share or market-size numbers were not treated as verified unless directly stated.")
     if not bullets:
         paragraphs.append(NOT_VERIFIED)
     return {"paragraphs": paragraphs, "bullets": bullets}
@@ -586,7 +590,6 @@ def _company_comparison_table(entities: list[str], sources: list[dict[str, Any]]
         "Product focus",
         "Pricing / fees",
         "Business signals",
-        "Evidence limitation",
     )
     return _side_by_side_table(entities, sources, rows=rows)
 
@@ -605,7 +608,7 @@ def _best_entity_source(entity: str, row_name: str, sources: list[dict[str, Any]
     entity_l = entity.lower()
     terms_by_row = {
         "business model": ["business model", "restaurant partner", "merchant", "marketplace", "delivery partner", "commerce", "quick commerce", "subscription"],
-        "market presence": ["market", "share", "cities", "city", "valuation", "investor", "position", "dominant", "presence"],
+        "market presence": ["market", "share", "cities", "city", "valuation", "investor", "position", "dominant", "presence", "operates"],
         "product focus": ["product", "service", "vertical", "quick commerce", "instamart", "blinkit", "dining", "events", "restaurant delivery", "grocery"],
         "pricing / fees": ["pricing", "price", "fee", "commission", "subscription", "plan", "cost", "ad spend", "promotional"],
         "business signals": ["revenue", "profit", "profitability", "market capitalization", "valuation", "growth", "ipo", "investor", "share", "holds", "leads"],
@@ -642,6 +645,8 @@ def _sentence_valid_for_row(sentence: str, row_name: str) -> bool:
         return False
     if any(term in lowered for term in financial_terms) and row not in {"business signals", "market presence", "market evidence"}:
         return False
+    if row == "evidence limitation":
+        return any(term in lowered for term in ("not exact financial", "not financial", "does not verify", "only", "limitation", "verify"))
     if row in {"pricing / fees", "pricing evidence"}:
         return any(term in lowered for term in pricing_terms)
     if row == "business signals":

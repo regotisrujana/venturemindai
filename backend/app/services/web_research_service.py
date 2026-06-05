@@ -53,10 +53,10 @@ TRUSTED_DOMAINS = (
 )
 
 SOURCE_TYPE_RULES = (
-    ("pricing", ("pricing", "plans", "subscription")),
-    ("product", ("product", "features", "platform")),
-    ("official", ("about", "company", "official")),
-    ("financial", ("annual", "investor", "revenue", "financial", "sec.gov")),
+    ("pricing", ("pricing", "plans", "subscription", "terms", "charges", "fees")),
+    ("product", ("product", "features", "platform", "food delivery", "quick commerce", "grocery", "instamart")),
+    ("official", ("about", "company", "official", "corporate", "who-we-are")),
+    ("financial", ("annual", "investor", "investor-relations", "revenue", "financial", "sec.gov")),
     ("news", ("news", "business", "economictimes", "forbes", "moneycontrol")),
 )
 
@@ -76,8 +76,17 @@ KNOWN_COMPANY_URLS = {
     "little hotelier": ["https://www.littlehotelier.com", "https://www.littlehotelier.com/pricing/"],
     "canva": ["https://www.canva.com", "https://www.canva.com/pricing/"],
     "adobe express": ["https://www.adobe.com/express/", "https://www.adobe.com/express/pricing"],
-    "zomato": ["https://www.zomato.com"],
-    "swiggy": ["https://www.swiggy.com"],
+    "zomato": [
+        "https://www.zomato.com",
+        "https://www.zomato.com/who-we-are",
+        "https://www.zomato.com/investor-relations",
+        "https://www.zomato.com/policies/terms-of-service",
+    ],
+    "swiggy": [
+        "https://www.swiggy.com",
+        "https://www.swiggy.com/corporate/",
+        "https://www.swiggy.com/instamart",
+    ],
     "zepto": ["https://www.zeptonow.com", "https://www.zeptonow.com/about-us"],
     "blinkit": ["https://blinkit.com", "https://blinkit.com/aboutus"],
 }
@@ -304,7 +313,7 @@ class WebResearchService:
                 continue
             seen_urls.add(canonical)
             source = await self._fetch_page_source(client, url, "known_relevant")
-            sources.append(source or self._source(f"{name.title()} official website", url, self._known_fallback_snippet(name), "known_relevant"))
+            sources.append(source or self._source(self._known_fallback_title(name, url), url, self._known_fallback_snippet(name, url), "known_relevant"))
         return sources
 
     async def _official_fallback(self, client: httpx.AsyncClient, query: str, entities: list[str]) -> list[ResearchSource]:
@@ -336,7 +345,7 @@ class WebResearchService:
                     self._source(
                         f"{name.title()} official website",
                         url,
-                        self._known_fallback_snippet(name),
+                        self._known_fallback_snippet(name, url),
                         "official_fallback",
                     )
                 )
@@ -353,7 +362,44 @@ class WebResearchService:
         except httpx.HTTPError:
             return None
 
-    def _known_fallback_snippet(self, name: str) -> str:
+    def _known_fallback_title(self, name: str, url: str) -> str:
+        if "terms" in url:
+            return f"{name.title()} terms of service"
+        if "investor" in url:
+            return f"{name.title()} investor relations"
+        if "instamart" in url:
+            return "Swiggy Instamart"
+        if "corporate" in url or "who-we-are" in url:
+            return f"{name.title()} corporate profile"
+        return f"{name.title()} official website"
+
+    def _known_fallback_snippet(self, name: str, url: str = "") -> str:
+        url_l = url.lower()
+        if name == "zomato" and "terms" in url_l:
+            return (
+                "Zomato terms describe prices on the Zomato Platform as provided by Restaurant Partners, including packaging or handling charges where applicable. "
+                "This supports pricing visibility only and does not verify revenue, margins, or market share."
+            )
+        if name == "zomato" and "investor" in url_l:
+            return (
+                "Zomato investor relations is the official source for public company investor updates and financial disclosures. "
+                "Use this source only for business signals that are directly stated there."
+            )
+        if name == "zomato":
+            return (
+                "Zomato operates a public restaurant-discovery, food-ordering, delivery, and restaurant-commerce product platform with restaurant partner interactions. "
+                "This supports core offering and product-position evidence, not exact financial metrics."
+            )
+        if name == "swiggy" and "instamart" in url_l:
+            return (
+                "Swiggy Instamart is presented as Swiggy's quick-commerce and grocery delivery service. "
+                "This supports product focus and delivery-commerce positioning, not exact financial metrics."
+            )
+        if name == "swiggy":
+            return (
+                "Swiggy operates a public food-delivery, restaurant-ordering, quick-commerce, and consumer commerce service platform. "
+                "This supports core offering and product-position evidence, not exact financial metrics."
+            )
         if name in {"zepto", "blinkit"}:
             return f"Official website reference for {name.title()} in quick commerce and grocery delivery. Use this citation to verify company or product existence, not financial metrics."
         return f"Official website reference for {name.title()}. Use this citation to verify company or product existence, not financial metrics."
