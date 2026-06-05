@@ -3,6 +3,7 @@ import re
 import unicodedata
 from textwrap import wrap
 from typing import Any
+from urllib.parse import urlparse
 
 from docx import Document
 from reportlab.lib.pagesizes import LETTER
@@ -12,6 +13,19 @@ from app.services.rag_service import clean_evidence_text, is_boilerplate_text
 
 
 NOT_VERIFIED = "Not publicly verified from collected sources."
+TRUSTED_NUMERIC_DOMAINS = (
+    "zomato.com",
+    "swiggy.com",
+    "economictimes.indiatimes.com",
+    "moneycontrol.com",
+    "business-standard.com",
+    "forbes.com",
+    "sec.gov",
+    "annualreports.com",
+    "companiesmarketcap.com",
+    "crunchbase.com",
+    "statista.com",
+)
 
 REPORT_SECTION_ORDER = [
     ("company_idea_overview", "Company / Idea Overview"),
@@ -36,7 +50,7 @@ COMPANY_COMPARISON_SECTION_ORDER = [
 
 
 def format_business_report(raw_agent_output: dict[str, Any]) -> dict[str, Any]:
-    if raw_agent_output.get("formatted_version") == 7:
+    if raw_agent_output.get("formatted_version") == 8:
         return raw_agent_output
 
     query = raw_agent_output.get("query") or raw_agent_output.get("input_text") or "this business question"
@@ -67,7 +81,7 @@ def format_business_report(raw_agent_output: dict[str, Any]) -> dict[str, Any]:
         )
 
     return {
-        "formatted_version": 7,
+        "formatted_version": 8,
         "title": raw_agent_output.get("title") or f"Business Strategy Report: {str(query)[:80]}",
         "query": query,
         "mode": mode,
@@ -438,6 +452,8 @@ def _unique_sources(raw: dict[str, Any], query: str) -> list[dict[str, Any]]:
             continue
         if not _source_relevant_to_query(query, title, snippet, url):
             continue
+        if _contains_numeric_business_claim(snippet) and not _trusted_numeric_source(url, item.get("source_type") or item.get("collection") or "web"):
+            continue
         key = _source_key(url, title)
         if key in seen or _incomplete(snippet):
             continue
@@ -446,7 +462,7 @@ def _unique_sources(raw: dict[str, Any], query: str) -> list[dict[str, Any]]:
             {
                 "title": title[:180],
                 "url": url,
-                "snippet": snippet[:500],
+                "snippet": snippet[:900],
                 "source_type": item.get("source_type") or item.get("collection") or "web",
                 "confidence": float(item.get("confidence_score") or item.get("confidence") or 0.5),
                 "collected_at": item.get("collected_at") or item.get("timestamp") or "",
@@ -563,12 +579,12 @@ def _snippet_to_bullet(source: dict[str, Any]) -> str:
             ),
             "",
         )
-        if pricing_sentence:
+        if pricing_sentence and _claim_allowed_for_source(pricing_sentence, source):
             return f"{pricing_sentence.rstrip('.')} ({source.get('title', 'Source')})."
     sentence = useful_sentences[0].strip() if useful_sentences else ""
     if len(sentence) < 30:
         sentence = snippet[:180].strip()
-    if not sentence or is_boilerplate_text(sentence) or not _meaningful_evidence_sentence(sentence):
+    if not sentence or is_boilerplate_text(sentence) or not _meaningful_evidence_sentence(sentence) or not _claim_allowed_for_source(sentence, source):
         return ""
     return f"{sentence.rstrip('.')} ({source.get('title', 'Source')})."
 
@@ -622,13 +638,19 @@ def _best_entity_source(entity: str, row_name: str, sources: list[dict[str, Any]
         "customer focus": ["customer", "user", "consumer", "merchant", "restaurant"],
     }
     terms = terms_by_row.get(row_name.lower(), row_name.lower().split())
-    for source in sources:
-        for sentence in _sentences(source.get("snippet", "")):
+    source_sentences = [(source, sentence) for source in sources for sentence in _sentences(source.get("snippet", ""))]
+    for source, sentence in source_sentences:
+        lowered = sentence.lower()
+        if entity_l not in lowered:
+            continue
+        if _row_phrase_matches(row_name, lowered) and _sentence_valid_for_row(sentence, row_name) and _claim_allowed_for_source(sentence, source):
+            return {**source, "sentence": _clean_sentence(sentence)}
+    for source, sentence in source_sentences:
             lowered = sentence.lower()
             if entity_l not in lowered:
                 continue
             candidate = {**source, "sentence": _clean_sentence(sentence)}
-            if any(term in lowered for term in terms) and _sentence_valid_for_row(sentence, row_name):
+            if any(term in lowered for term in terms) and _sentence_valid_for_row(sentence, row_name) and _claim_allowed_for_source(sentence, source):
                 return candidate
     return None
 
@@ -650,6 +672,8 @@ def _sentence_valid_for_row(sentence: str, row_name: str) -> bool:
     if row in {"pricing / fees", "pricing evidence"}:
         return any(term in lowered for term in pricing_terms)
     if row == "business signals":
+        if any(term in lowered for term in ("must come from", "not exact", "does not verify", "only")):
+            return False
         return any(term in lowered for term in financial_terms + ("growth", "market share", "investor", "annual report"))
     if row == "market presence":
         return any(term in lowered for term in ("market", "share", "cities", "city", "presence", "valuation", "growth", "leader", "operates"))
@@ -795,6 +819,11 @@ def _clean_text(value: str) -> str:
 
 def _fix_mojibake(value: str) -> str:
     text = str(value or "")
+    if any(marker in text for marker in ("Ã", "Â", "â€", "â€™", "â€œ", "â€�")):
+        try:
+            text = text.encode("latin1").decode("utf-8")
+        except UnicodeError:
+            pass
     replacements = {
         "â€™": "'",
         "â€˜": "'",
@@ -815,6 +844,52 @@ def _fix_mojibake(value: str) -> str:
 
 def _tokens(value: str) -> list[str]:
     return re.findall(r"[a-z0-9]+", str(value or "").lower())
+
+
+def _row_phrase_matches(row_name: str, lowered_sentence: str) -> bool:
+    row_tokens = _tokens(row_name)
+    if not row_tokens:
+        return False
+    normalized_sentence = " ".join(_tokens(lowered_sentence))
+    normalized_row = " ".join(row_tokens)
+    return normalized_row in normalized_sentence
+
+
+def _claim_allowed_for_source(sentence: str, source: dict[str, Any]) -> bool:
+    if not _contains_numeric_business_claim(sentence):
+        return True
+    return _trusted_numeric_source(source.get("url", ""), source.get("source_type", ""))
+
+
+def _contains_numeric_business_claim(text: str) -> bool:
+    lowered = str(text or "").lower()
+    if not re.search(r"\d", lowered):
+        return False
+    business_terms = (
+        "%",
+        "percent",
+        "commission",
+        "market share",
+        "share",
+        "revenue",
+        "profit",
+        "cities",
+        "users",
+        "valuation",
+        "growth",
+        "cagr",
+        "funding",
+        "market cap",
+    )
+    return any(term in lowered for term in business_terms)
+
+
+def _trusted_numeric_source(url: str, source_type: str) -> bool:
+    host = urlparse(str(url or "")).netloc.lower()
+    source_type_l = str(source_type or "").lower()
+    if any(domain in host for domain in TRUSTED_NUMERIC_DOMAINS):
+        return True
+    return any(marker in source_type_l for marker in ("financial", "trusted_business", "official"))
 
 
 def _incomplete(text: str) -> bool:

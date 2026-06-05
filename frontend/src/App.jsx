@@ -461,7 +461,7 @@ function RagPanel() {
       <div className="mt-4 space-y-2">
         {results.map((hit, index) => (
           <div className="rounded-md border border-slate-200 p-3 text-sm" key={index}>
-            <p className="font-semibold">{hit.source} · {Math.round(hit.confidence * 100)}%</p>
+            <p className="font-semibold">{hit.source} - {Math.round(hit.confidence * 100)}%</p>
             <p className="mt-1 text-steel">{hit.text.slice(0, 220)}</p>
           </div>
         ))}
@@ -522,7 +522,7 @@ function ReportViewer() {
     ["sources_used", "Sources Used"]
   ];
   return (
-    <Page title={data.title} subtitle={isCompanyComparison ? `Company comparison · Confidence ${Math.round(data.confidence_score * 100)}%` : `Viability ${data.viability_score}/100 · Confidence ${Math.round(data.confidence_score * 100)}%`}>
+    <Page title={data.title} subtitle={isCompanyComparison ? `Company comparison - Confidence ${Math.round(data.confidence_score * 100)}%` : `Viability ${data.viability_score}/100 - Confidence ${Math.round(data.confidence_score * 100)}%`}>
       <div className="flex flex-wrap gap-3">
         <a className="btn-primary" href={api.downloadUrl(data.id, "pdf")}><Download size={16} /> PDF</a>
         <a className="btn-secondary" href={api.downloadUrl(data.id, "docx")}><Download size={16} /> DOCX</a>
@@ -613,7 +613,7 @@ function AgentReasoningPanel({ content }) {
       <div className="mt-3 space-y-3">
         {rows.map((row) => (
           <details className="rounded-md border border-slate-200 p-3" key={row.agent}>
-            <summary className="cursor-pointer text-sm font-semibold capitalize">{row.agent.replaceAll("_", " ")} · {row.status}</summary>
+            <summary className="cursor-pointer text-sm font-semibold capitalize">{row.agent.replaceAll("_", " ")} - {row.status}</summary>
             <div className="mt-3 space-y-2 text-sm text-steel">
               <p><strong>Evidence Collected:</strong> {row.evidence_collected}</p>
               <p><strong>Reasoning Summary:</strong> {row.reasoning_summary}</p>

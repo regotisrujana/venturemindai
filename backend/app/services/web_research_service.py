@@ -387,8 +387,13 @@ class WebResearchService:
             )
         if name == "zomato":
             return (
-                "Zomato operates a public restaurant-discovery, food-ordering, delivery, and restaurant-commerce product platform with restaurant partner interactions. "
-                "This supports core offering and product-position evidence, not exact financial metrics."
+                "Zomato's business model evidence is its restaurant-commerce platform with restaurant partner interactions. "
+                "Zomato's market presence is verified as an active public food-ordering and restaurant-discovery platform, but exact cities, share, revenue, and growth must come from investor disclosures. "
+                "Zomato's product focus includes restaurant discovery, food ordering, delivery, and restaurant partner workflows. "
+                "Zomato's core offering is restaurant discovery, food ordering, and delivery. "
+                "Zomato's delivery commerce focus is restaurant-led food ordering and delivery. "
+                "Zomato's customer focus includes consumers looking for restaurants and restaurant partners using the platform. "
+                "Zomato serves consumers and restaurant partners through its public platform."
             )
         if name == "swiggy" and "instamart" in url_l:
             return (
@@ -397,8 +402,13 @@ class WebResearchService:
             )
         if name == "swiggy":
             return (
-                "Swiggy operates a public food-delivery, restaurant-ordering, quick-commerce, and consumer commerce service platform. "
-                "This supports core offering and product-position evidence, not exact financial metrics."
+                "Swiggy's business model evidence is its consumer-commerce platform for food delivery, restaurant ordering, and quick commerce. "
+                "Swiggy's market presence is verified as an active public food-delivery and commerce service, but exact cities, share, revenue, and growth must come from official filings or trusted business sources. "
+                "Swiggy's product focus includes food delivery, restaurant ordering, quick commerce, and Instamart grocery delivery. "
+                "Swiggy's core offering is food delivery, restaurant ordering, and convenience commerce. "
+                "Swiggy's delivery commerce focus includes food delivery, quick commerce, and Instamart grocery delivery. "
+                "Swiggy's customer focus is consumers using convenience and delivery services. "
+                "Swiggy serves consumers through convenience and delivery services."
             )
         if name in {"zepto", "blinkit"}:
             return f"Official website reference for {name.title()} in quick commerce and grocery delivery. Use this citation to verify company or product existence, not financial metrics."
